@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>二维码批量记录并导出 Excel</title>
+  <style>
+    body{font-family: Arial, "Noto Sans SC", sans-serif; padding:16px; background:#f6f7fb}
+    h1{font-size:20px;margin-bottom:8px}
+    #scanner{width:100%;max-width:480px;margin-bottom:8px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    button{padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #ddd;padding:8px;text-align:left}
+    th{background:#eee}
+    .highlight{background: #fff9c4}
+    @media (min-width:700px){body{max-width:900px;margin:24px auto}}
+  </style>
+  <!-- 引入 html5-qrcode（用于扫码）和 SheetJS（用于导出 Excel） -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <h1>二维码批量记录并导出 Excel</h1>
+  <p>点击“开始扫描”后，请允许浏览器使用摄像头，系统会优先调用后置摄像头。扫码结果会放入第一列，然后你输入第二列备注，最后点击“导出 Excel”。</p>
+
+  <div class="controls">
+    <button id="btnStart">开始扫描</button>
+    <button id="btnStop" disabled>停止扫描</button>
+    <button id="btnExport">完成并导出 Excel</button>
+    <button id="btnClear">清空表格</button>
+  </div>
+
+  <div id="scanner"></div>
+
+  <table id="dataTable">
+    <thead>
+      <tr><th style="width:60%">第一列（扫码结果）</th><th style="width:35%">第二列（输入/备注）</th><th style="width:5%">操作</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const startBtn = document.getElementById('btnStart');
+    const stopBtn = document.getElementById('btnStop');
+    const exportBtn = document.getElementById('btnExport');
+    const clearBtn = document.getElementById('btnClear');
+    const scannerDiv = document.getElementById('scanner');
+    const tbody = document.querySelector('#dataTable tbody');
+
+    let html5QrCode = null;
+    let scanning = false;
+
+    // 启动扫描器
+    startBtn.addEventListener('click', async ()=>{
+      if (scanning) return;
+      if (!html5QrCode) html5QrCode = new Html5Qrcode("scanner");
+
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        if (!devices || devices.length === 0) {
+          alert("没有检测到摄像头，请检查浏览器权限或更换浏览器");
+          return;
+        }
+
+        // 优先选择后置摄像头
+        let cameraId = devices[0].id;
+        for (let d of devices) {
+          if (/back|rear|environment/i.test(d.label)) {
+            cameraId = d.id;
+            break;
+          }
+        }
+
+        await html5QrCode.start(
+          cameraId,
+          { fps: 10, qrbox: { width: 300, height: 150 } },
+          qrCodeMessage => addRow(qrCodeMessage),
+          errorMessage => {}
+        );
+
+        scanning = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      } catch (e) {
+        alert("启动摄像头失败：" + e.message + "\n请确认：\n1. 是否用 HTTPS 打开页面\n2. 是否允许浏览器访问摄像头");
+      }
+    });
+
+    // 停止扫描器
+    stopBtn.addEventListener('click', async ()=>{
+      if (!scanning || !html5QrCode) return;
+      await html5QrCode.stop();
+      html5QrCode.clear();
+      scanning = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+
+    // 添加一行
+    function addRow(qrText){
+      const tr = document.createElement('tr');
+      const td1 = document.createElement('td');
+      td1.innerText = qrText;
+      td1.style.background = '#e0ffff';
+
+      const td2 = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '请输入第二列（备注）';
+      input.style.width = '100%';
+      td2.appendChild(input);
+
+      const td3 = document.createElement('td');
+      const del = document.createElement('button');
+      del.innerText = '删';
+      del.addEventListener('click', ()=> tr.remove());
+      td3.appendChild(del);
+
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      tr.appendChild(td3);
+      tbody.appendChild(tr);
+
+      setTimeout(()=> input.focus(), 50);
+    }
+
+    // 导出 Excel
+    exportBtn.addEventListener('click', ()=>{
+      const rows = [[ '第一列', '第二列' ]];
+      for (const r of tbody.querySelectorAll('tr')){
+        const c1 = r.querySelector('td:nth-child(1)').innerText.trim();
+        const c2 = r.querySelector('input') ? r.querySelector('input').value.trim() : '';
+        rows.push([c1, c2]);
+      }
+      if (rows.length <= 1) { alert('表格为空'); return; }
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:40},{wch:20}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+      const blob = new Blob([wbout], {type: 'application/octet-stream'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '扫码记录.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    clearBtn.addEventListener('click', ()=>{
+      if (confirm('确定要清空表格吗？')) tbody.innerHTML = '';
+    });
+
+    // HTTPS 提示
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost'){
+      const warn = document.createElement('div');
+      warn.style.padding = '8px';
+      warn.style.marginTop = '8px';
+      warn.style.background = '#fff3cd';
+      warn.style.border = '1px solid #ffeeba';
+      warn.innerText = '⚠️ 注意：摄像头功能需要在 HTTPS 环境（或 localhost）下运行。若无法打开摄像头，请通过 HTTPS 链接或手机本地服务器访问。';
+      document.body.insertBefore(warn, document.getElementById('scanner'));
+    }
+  </script>
+</body>
+</html>
