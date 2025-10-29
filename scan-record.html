@@ -1,169 +1,614 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>二维码批量记录并导出 Excel</title>
-  <style>
-    body{font-family: Arial, "Noto Sans SC", sans-serif; padding:16px; background:#f6f7fb}
-    h1{font-size:20px;margin-bottom:8px}
-    #scanner{width:100%;max-width:480px;margin-bottom:8px}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-    button{padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{border:1px solid #ddd;padding:8px;text-align:left}
-    th{background:#eee}
-    .highlight{background: #fff9c4}
-    @media (min-width:700px){body{max-width:900px;margin:24px auto}}
-  </style>
-  <!-- 引入 html5-qrcode（用于扫码）和 SheetJS（用于导出 Excel） -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-</head>
-<body>
-  <h1>二维码批量记录并导出 Excel</h1>
-  <p>点击“开始扫描”后，请允许浏览器使用摄像头，系统会优先调用后置摄像头。扫码结果会放入第一列，然后你输入第二列备注，最后点击“导出 Excel”。</p>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品出库扫码系统</title>
+  <!-- 引入外部资源 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <div class="controls">
-    <button id="btnStart">开始扫描</button>
-    <button id="btnStop" disabled>停止扫描</button>
-    <button id="btnExport">完成并导出 Excel</button>
-    <button id="btnClear">清空表格</button>
-  </div>
-
-  <div id="scanner"></div>
-
-  <table id="dataTable">
-    <thead>
-      <tr><th style="width:60%">第一列（扫码结果）</th><th style="width:35%">第二列（输入/备注）</th><th style="width:5%">操作</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
+  <!-- Tailwind 配置 -->
   <script>
-    const startBtn = document.getElementById('btnStart');
-    const stopBtn = document.getElementById('btnStop');
-    const exportBtn = document.getElementById('btnExport');
-    const clearBtn = document.getElementById('btnClear');
-    const scannerDiv = document.getElementById('scanner');
-    const tbody = document.querySelector('#dataTable tbody');
-
-    let html5QrCode = null;
-    let scanning = false;
-
-    // 启动扫描器
-    startBtn.addEventListener('click', async ()=>{
-      if (scanning) return;
-      if (!html5QrCode) html5QrCode = new Html5Qrcode("scanner");
-
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (!devices || devices.length === 0) {
-          alert("没有检测到摄像头，请检查浏览器权限或更换浏览器");
-          return;
-        }
-
-        // 优先选择后置摄像头
-        let cameraId = devices[0].id;
-        for (let d of devices) {
-          if (/back|rear|environment/i.test(d.label)) {
-            cameraId = d.id;
-            break;
-          }
-        }
-
-        await html5QrCode.start(
-          cameraId,
-          { fps: 10, qrbox: { width: 300, height: 150 } },
-          qrCodeMessage => addRow(qrCodeMessage),
-          errorMessage => {}
-        );
-
-        scanning = true;
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-      } catch (e) {
-        alert("启动摄像头失败：" + e.message + "\n请确认：\n1. 是否用 HTTPS 打开页面\n2. 是否允许浏览器访问摄像头");
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3B82F6',
+            secondary: '#10B981',
+            accent: '#F59E0B',
+            danger: '#EF4444',
+            dark: '#1E293B',
+            light: '#F8FAFC'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
       }
-    });
+    }
+  </script>
 
-    // 停止扫描器
-    stopBtn.addEventListener('click', async ()=>{
-      if (!scanning || !html5QrCode) return;
-      await html5QrCode.stop();
-      html5QrCode.clear();
-      scanning = false;
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    });
-
-    // 添加一行
-    function addRow(qrText){
-      const tr = document.createElement('tr');
-      const td1 = document.createElement('td');
-      td1.innerText = qrText;
-      td1.style.background = '#e0ffff';
-
-      const td2 = document.createElement('td');
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.placeholder = '请输入第二列（备注）';
-      input.style.width = '100%';
-      td2.appendChild(input);
-
-      const td3 = document.createElement('td');
-      const del = document.createElement('button');
-      del.innerText = '删';
-      del.addEventListener('click', ()=> tr.remove());
-      td3.appendChild(del);
-
-      tr.appendChild(td1);
-      tr.appendChild(td2);
-      tr.appendChild(td3);
-      tbody.appendChild(tr);
-
-      setTimeout(()=> input.focus(), 50);
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      .animate-slide-up {
+        animation: slideUp 0.3s ease-out;
+      }
+      .scan-box {
+        clip-path: polygon(20% 20%, 80% 20%, 80% 80%, 20% 80%);
+      }
+      .scan-line {
+        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.8), transparent);
+        animation: scan 2s linear infinite;
+      }
     }
 
-    // 导出 Excel
-    exportBtn.addEventListener('click', ()=>{
-      const rows = [[ '第一列', '第二列' ]];
-      for (const r of tbody.querySelectorAll('tr')){
-        const c1 = r.querySelector('td:nth-child(1)').innerText.trim();
-        const c2 = r.querySelector('input') ? r.querySelector('input').value.trim() : '';
-        rows.push([c1, c2]);
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    @keyframes scan {
+      0% { top: 20%; }
+      100% { top: 80%; }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 font-sans text-dark min-h-screen flex flex-col">
+  <!-- 顶部导航 -->
+  <header class="bg-white shadow-md sticky top-0 z-50 transition-all duration-300">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-barcode text-primary text-2xl"></i>
+        <h1 class="text-xl font-bold text-primary">商品出库扫码系统</h1>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span id="scan-count" class="hidden md:inline-block bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
+          已扫描: <span class="font-bold">0</span> 件
+        </span>
+        <button id="help-btn" class="text-gray-600 hover:text-primary transition-colors">
+          <i class="fa fa-question-circle text-xl"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <main class="flex-grow container mx-auto px-4 py-6">
+    <!-- 初始状态 -->
+    <section id="initial-view" class="animate-fade-in">
+      <div class="max-w-2xl mx-auto text-center">
+        <div class="bg-white rounded-2xl shadow-lg p-8 mb-8 transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+          <div class="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i class="fa fa-qrcode text-primary text-4xl"></i>
+          </div>
+          <h2 class="text-2xl font-bold mb-4">准备开始扫码</h2>
+          <p class="text-gray-600 mb-8">点击下方按钮开始扫描商品二维码，系统将记录商品信息并分配给指定人员</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button id="start-scan-btn" class="bg-primary hover:bg-primary/90 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg">
+              <i class="fa fa-camera"></i>
+              <span>开始扫码</span>
+            </button>
+            <button id="view-history-btn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2">
+              <i class="fa fa-history"></i>
+              <span>查看记录</span>
+            </button>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow p-6">
+          <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fa fa-info-circle text-accent mr-2"></i>
+            使用说明
+          </h3>
+          <ul class="text-left text-gray-600 space-y-2">
+            <li class="flex items-start">
+              <i class="fa fa-check-circle text-secondary mt-1 mr-2"></i>
+              <span>点击"开始扫码"按钮调用摄像头</span>
+            </li>
+            <li class="flex items-start">
+              <i class="fa fa-check-circle text-secondary mt-1 mr-2"></i>
+              <span>扫描商品二维码后输入分配人员信息</span>
+            </li>
+            <li class="flex items-start">
+              <i class="fa fa-check-circle text-secondary mt-1 mr-2"></i>
+              <span>完成后可选择继续扫码或导出数据</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 扫码区域 -->
+    <section id="scan-view" class="hidden animate-fade-in">
+      <div class="max-w-2xl mx-auto">
+        <div class="relative bg-black rounded-2xl overflow-hidden mb-6 aspect-video">
+          <!-- 扫码框和扫描线效果 -->
+          <div class="absolute inset-0 bg-black/50">
+            <div class="scan-box absolute inset-0 bg-transparent border-2 border-primary"></div>
+            <div class="scan-line absolute left-0 w-full h-1"></div>
+          </div>
+          <!-- 摄像头容器 -->
+          <div id="qr-reader" class="w-full h-full"></div>
+          
+          <!-- 扫码提示 -->
+          <div class="absolute bottom-4 left-0 right-0 text-center text-white">
+            <p class="bg-black/60 px-4 py-2 rounded-full inline-block text-sm">
+              请将二维码对准扫描框
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex justify-between">
+          <button id="back-btn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-5 rounded-xl transition-all duration-300 flex items-center space-x-2 shadow-sm">
+            <i class="fa fa-arrow-left"></i>
+            <span>返回</span>
+          </button>
+          <button id="switch-camera-btn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-5 rounded-xl transition-all duration-300 flex items-center space-x-2 shadow-sm">
+            <i class="fa fa-refresh"></i>
+            <span>切换摄像头</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 商品信息编辑区域 -->
+    <section id="edit-view" class="hidden animate-slide-up">
+      <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg p-6">
+        <h2 class="text-xl font-bold mb-6 text-center">商品信息</h2>
+        
+        <div class="space-y-4 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">商品条码</label>
+            <div class="relative">
+              <input type="text" id="product-code" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all" readonly>
+              <button id="copy-code-btn" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary transition-colors">
+                <i class="fa fa-copy"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div>
+            <label for="assigned-person" class="block text-sm font-medium text-gray-700 mb-1">分配人员</label>
+            <input type="text" id="assigned-person" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all" placeholder="请输入分配人员姓名">
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <button id="save-and-continue-btn" class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg">
+            <i class="fa fa-save"></i>
+            <span>保存并继续</span>
+          </button>
+          <button id="save-and-finish-btn" class="bg-secondary hover:bg-secondary/90 text-white font-medium py-2 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg">
+            <i class="fa fa-check"></i>
+            <span>保存并完成</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 历史记录区域 -->
+    <section id="history-view" class="hidden animate-fade-in">
+      <div class="max-w-3xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold">扫描记录</h2>
+          <button id="back-from-history-btn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center space-x-1 shadow-sm">
+            <i class="fa fa-arrow-left"></i>
+            <span>返回</span>
+          </button>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">商品条码</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分配人员</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body" class="bg-white divide-y divide-gray-200">
+                <!-- 记录将通过JS动态添加 -->
+                <tr class="text-center">
+                  <td colspan="4" class="px-6 py-10 text-gray-500">
+                    <div class="flex flex-col items-center">
+                      <i class="fa fa-folder-open-o text-4xl mb-3 text-gray-300"></i>
+                      <p>暂无扫描记录</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div class="flex justify-center">
+          <button id="export-excel-btn" class="bg-accent hover:bg-accent/90 text-white font-medium py-2 px-6 rounded-xl transition-all duration-300 flex items-center space-x-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i class="fa fa-file-excel-o"></i>
+            <span>导出Excel</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 底部提示 -->
+  <footer class="bg-white border-t border-gray-200 py-4 mt-auto">
+    <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+      <p>商品出库扫码系统 &copy; 2023</p>
+    </div>
+  </footer>
+
+  <!-- 提示弹窗 -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-dark text-white px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-y-20 opacity-0 flex items-center space-x-2 z-50">
+    <i id="toast-icon" class="fa fa-info-circle"></i>
+    <span id="toast-message">提示信息</span>
+  </div>
+
+  <script>
+    // 全局变量
+    let scanHistory = [];
+    let html5QrcodeScanner;
+    let currentCamera = 'environment'; // 默认使用后置摄像头
+    
+    // DOM 元素
+    const initialView = document.getElementById('initial-view');
+    const scanView = document.getElementById('scan-view');
+    const editView = document.getElementById('edit-view');
+    const historyView = document.getElementById('history-view');
+    const productCodeInput = document.getElementById('product-code');
+    const assignedPersonInput = document.getElementById('assigned-person');
+    const historyTableBody = document.getElementById('history-table-body');
+    const scanCountElement = document.getElementById('scan-count').querySelector('span');
+    const exportExcelBtn = document.getElementById('export-excel-btn');
+    
+    // 初始化页面
+    document.addEventListener('DOMContentLoaded', () => {
+      // 尝试从本地存储加载历史记录
+      loadHistoryFromLocalStorage();
+      updateHistoryTable();
+      updateScanCount();
+      
+      // 绑定事件监听
+      bindEventListeners();
+    });
+    
+    // 绑定事件监听
+    function bindEventListeners() {
+      // 初始页面按钮
+      document.getElementById('start-scan-btn').addEventListener('click', startScan);
+      document.getElementById('view-history-btn').addEventListener('click', showHistoryView);
+      
+      // 扫码页面按钮
+      document.getElementById('back-btn').addEventListener('click', stopScanAndReturn);
+      document.getElementById('switch-camera-btn').addEventListener('click', switchCamera);
+      
+      // 编辑页面按钮
+      document.getElementById('save-and-continue-btn').addEventListener('click', () => saveRecord(true));
+      document.getElementById('save-and-finish-btn').addEventListener('click', () => saveRecord(false));
+      document.getElementById('copy-code-btn').addEventListener('click', copyProductCode);
+      
+      // 历史记录页面按钮
+      document.getElementById('back-from-history-btn').addEventListener('click', showInitialView);
+      document.getElementById('export-excel-btn').addEventListener('click', exportToExcel);
+      
+      // 帮助按钮
+      document.getElementById('help-btn').addEventListener('click', () => {
+        showToast('使用说明：扫描商品二维码后输入分配人员信息', 'info-circle');
+      });
+    }
+    
+    // 开始扫码
+    function startScan() {
+      // 切换视图
+      initialView.classList.add('hidden');
+      scanView.classList.remove('hidden');
+      
+      // 初始化扫码器
+      const qrReader = document.getElementById('qr-reader');
+      
+      // 如果已有扫码器实例，先销毁
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear();
       }
-      if (rows.length <= 1) { alert('表格为空'); return; }
-
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{wch:40},{wch:20}];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-      const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-      const blob = new Blob([wbout], {type: 'application/octet-stream'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = '扫码记录.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    });
-
-    clearBtn.addEventListener('click', ()=>{
-      if (confirm('确定要清空表格吗？')) tbody.innerHTML = '';
-    });
-
-    // HTTPS 提示
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost'){
-      const warn = document.createElement('div');
-      warn.style.padding = '8px';
-      warn.style.marginTop = '8px';
-      warn.style.background = '#fff3cd';
-      warn.style.border = '1px solid #ffeeba';
-      warn.innerText = '⚠️ 注意：摄像头功能需要在 HTTPS 环境（或 localhost）下运行。若无法打开摄像头，请通过 HTTPS 链接或手机本地服务器访问。';
-      document.body.insertBefore(warn, document.getElementById('scanner'));
+      
+      // 创建新的扫码器实例
+      html5QrcodeScanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        false
+      );
+      
+      // 开始扫描
+      html5QrcodeScanner.render(onScanSuccess, onScanError);
+      
+      // 尝试使用指定的摄像头
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+          const cameraId = devices.find(d => d.label.toLowerCase().includes(currentCamera))?.id || devices[0].id;
+          html5QrcodeScanner.html5Qrcode.start(
+            cameraId,
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            onScanSuccess,
+            onScanError
+          );
+        }
+      }).catch(err => {
+        console.error('获取摄像头失败:', err);
+        showToast('无法访问摄像头，请确保已授予权限', 'exclamation-triangle');
+      });
+    }
+    
+    // 扫码成功回调
+    function onScanSuccess(decodedText, decodedResult) {
+      console.log(`扫码成功: ${decodedText}`);
+      
+      // 停止扫描
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear();
+      }
+      
+      // 填充商品条码并切换到编辑视图
+      productCodeInput.value = decodedText;
+      assignedPersonInput.value = '';
+      scanView.classList.add('hidden');
+      editView.classList.remove('hidden');
+      
+      // 自动聚焦到分配人员输入框
+      setTimeout(() => {
+        assignedPersonInput.focus();
+      }, 300);
+      
+      showToast('扫码成功，请输入分配人员信息', 'check-circle');
+    }
+    
+    // 扫码错误回调
+    function onScanError(errorMessage) {
+      // 可以忽略常规的扫描错误，仅处理严重错误
+      if (!errorMessage.includes('No QR code found')) {
+        console.error('扫码错误:', errorMessage);
+        // showToast('扫码错误，请重试', 'exclamation-circle');
+      }
+    }
+    
+    // 切换摄像头
+    function switchCamera() {
+      currentCamera = currentCamera === 'environment' ? 'user' : 'environment';
+      startScan(); // 重新启动扫描以切换摄像头
+      showToast(`已切换到${currentCamera === 'environment' ? '后置' : '前置'}摄像头`, 'info-circle');
+    }
+    
+    // 停止扫描并返回
+    function stopScanAndReturn() {
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear();
+      }
+      scanView.classList.add('hidden');
+      initialView.classList.remove('hidden');
+    }
+    
+    // 保存记录
+    function saveRecord(continueScanning) {
+      const productCode = productCodeInput.value.trim();
+      const assignedPerson = assignedPersonInput.value.trim();
+      
+      if (!productCode) {
+        showToast('商品条码不能为空', 'exclamation-circle');
+        return;
+      }
+      
+      if (!assignedPerson) {
+        showToast('请输入分配人员', 'exclamation-circle');
+        assignedPersonInput.focus();
+        return;
+      }
+      
+      // 添加记录
+      scanHistory.push({
+        id: Date.now(),
+        productCode,
+        assignedPerson,
+        timestamp: new Date().toISOString()
+      });
+      
+      // 保存到本地存储
+      saveHistoryToLocalStorage();
+      
+      // 更新UI
+      updateHistoryTable();
+      updateScanCount();
+      
+      // 切换视图
+      editView.classList.add('hidden');
+      
+      if (continueScanning) {
+        // 继续扫描
+        startScan();
+      } else {
+        // 返回初始视图
+        initialView.classList.remove('hidden');
+      }
+      
+      showToast('记录已保存', 'check-circle');
+    }
+    
+    // 复制商品条码
+    function copyProductCode() {
+      const productCode = productCodeInput.value.trim();
+      if (productCode) {
+        navigator.clipboard.writeText(productCode).then(() => {
+          showToast('商品条码已复制', 'check-circle');
+        }).catch(err => {
+          console.error('复制失败:', err);
+          showToast('复制失败，请手动复制', 'exclamation-circle');
+        });
+      }
+    }
+    
+    // 显示历史记录视图
+    function showHistoryView() {
+      initialView.classList.add('hidden');
+      historyView.classList.remove('hidden');
+      updateHistoryTable();
+    }
+    
+    // 显示初始视图
+    function showInitialView() {
+      historyView.classList.add('hidden');
+      initialView.classList.remove('hidden');
+    }
+    
+    // 更新历史记录表格
+    function updateHistoryTable() {
+      if (scanHistory.length === 0) {
+        historyTableBody.innerHTML = `
+          <tr class="text-center">
+            <td colspan="4" class="px-6 py-10 text-gray-500">
+              <div class="flex flex-col items-center">
+                <i class="fa fa-folder-open-o text-4xl mb-3 text-gray-300"></i>
+                <p>暂无扫描记录</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        exportExcelBtn.disabled = true;
+        return;
+      }
+      
+      exportExcelBtn.disabled = false;
+      
+      // 按时间倒序排列（最新的在前面）
+      const sortedHistory = [...scanHistory].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      
+      let tableHtml = '';
+      sortedHistory.forEach((item, index) => {
+        tableHtml += `
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${index + 1}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.productCode}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.assignedPerson}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <button class="text-danger hover:text-danger/80 transition-colors delete-record" data-id="${item.id}">
+                <i class="fa fa-trash-o"></i> 删除
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+      
+      historyTableBody.innerHTML = tableHtml;
+      
+      // 绑定删除按钮事件
+      document.querySelectorAll('.delete-record').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = parseInt(e.currentTarget.getAttribute('data-id'));
+          deleteRecord(id);
+        });
+      });
+    }
+    
+    // 删除记录
+    function deleteRecord(id) {
+      scanHistory = scanHistory.filter(item => item.id !== id);
+      saveHistoryToLocalStorage();
+      updateHistoryTable();
+      updateScanCount();
+      showToast('记录已删除', 'info-circle');
+    }
+    
+    // 更新扫描计数
+    function updateScanCount() {
+      scanCountElement.textContent = scanHistory.length;
+    }
+    
+    // 导出到Excel
+    function exportToExcel() {
+      if (scanHistory.length === 0) {
+        showToast('没有记录可导出', 'exclamation-circle');
+        return;
+      }
+      
+      // 准备导出数据
+      const exportData = scanHistory.map(item => ({
+        '商品条码': item.productCode,
+        '分配人员': item.assignedPerson
+      }));
+      
+      // 创建工作簿和工作表
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '商品出库记录');
+      
+      // 生成文件名（包含当前日期）
+      const today = new Date();
+      const fileName = `商品出库记录_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}.xlsx`;
+      
+      // 导出文件
+      XLSX.writeFile(workbook, fileName);
+      
+      showToast(`Excel已导出: ${fileName}`, 'check-circle');
+    }
+    
+    // 保存历史记录到本地存储
+    function saveHistoryToLocalStorage() {
+      try {
+        localStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+      } catch (err) {
+        console.error('保存历史记录失败:', err);
+        showToast('保存记录失败，请清理浏览器存储', 'exclamation-circle');
+      }
+    }
+    
+    // 从本地存储加载历史记录
+    function loadHistoryFromLocalStorage() {
+      try {
+        const savedHistory = localStorage.getItem('scanHistory');
+        if (savedHistory) {
+          scanHistory = JSON.parse(savedHistory);
+        }
+      } catch (err) {
+        console.error('加载历史记录失败:', err);
+        scanHistory = [];
+      }
+    }
+    
+    // 显示提示消息
+    function showToast(message, icon = 'info-circle') {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+      
+      toastMessage.textContent = message;
+      toastIcon.className = `fa fa-${icon}`;
+      
+      // 显示提示
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      
+      // 3秒后隐藏
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
     }
   </script>
 </body>
