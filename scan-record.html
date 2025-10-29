@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>商品出库扫码系统</title>
+  <title>panel分配系统</title>  <!-- 标题修改 -->
   <!-- 引入外部资源 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -45,7 +45,7 @@
         animation: slideUp 0.3s ease-out;
       }
       .scan-box {
-        clip-path: polygon(20% 20%, 80% 20%, 80% 80%, 20% 80%);
+        clip-path: polygon(15% 15%, 85% 15%, 85% 85%, 15% 85%);  /* 扩大扫描框 */
       }
       .scan-line {
         background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.8), transparent);
@@ -64,8 +64,8 @@
     }
     
     @keyframes scan {
-      0% { top: 20%; }
-      100% { top: 80%; }
+      0% { top: 15%; }  /* 调整扫描线动画范围 */
+      100% { top: 85%; }
     }
   </style>
 </head>
@@ -76,7 +76,7 @@
     <div class="container mx-auto px-4 py-3 flex justify-between items-center">
       <div class="flex items-center space-x-2">
         <i class="fa fa-barcode text-primary text-2xl"></i>
-        <h1 class="text-xl font-bold text-primary">商品出库扫码系统</h1>
+        <h1 class="text-xl font-bold text-primary">panel分配系统</h1>  <!-- 标题修改 -->
       </div>
       <div class="flex items-center space-x-4">
         <span id="scan-count" class="hidden md:inline-block bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
@@ -99,7 +99,7 @@
             <i class="fa fa-qrcode text-primary text-4xl"></i>
           </div>
           <h2 class="text-2xl font-bold mb-4">准备开始扫码</h2>
-          <p class="text-gray-600 mb-8">点击下方按钮开始扫描商品二维码，系统将记录商品信息并分配给指定人员</p>
+          <p class="text-gray-600 mb-8">点击下方按钮开始扫描panel二维码，系统将记录panel信息并分配给指定人员</p>  <!-- 文本修改 -->
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button id="start-scan-btn" class="bg-primary hover:bg-primary/90 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg">
@@ -125,7 +125,7 @@
             </li>
             <li class="flex items-start">
               <i class="fa fa-check-circle text-secondary mt-1 mr-2"></i>
-              <span>扫描商品二维码后输入分配人员信息</span>
+              <span>扫描panel二维码后输入分配人员信息</span>  <!-- 文本修改 -->
             </li>
             <li class="flex items-start">
               <i class="fa fa-check-circle text-secondary mt-1 mr-2"></i>
@@ -138,8 +138,8 @@
 
     <!-- 扫码区域 -->
     <section id="scan-view" class="hidden animate-fade-in">
-      <div class="max-w-2xl mx-auto">
-        <div class="relative bg-black rounded-2xl overflow-hidden mb-6 aspect-video">
+      <div class="max-w-3xl mx-auto">  <!-- 扩大最大宽度 -->
+        <div class="relative bg-black rounded-2xl overflow-hidden mb-6" style="aspect-ratio: 4/3;">  <!-- 调整宽高比为4:3，增大显示区域 -->
           <!-- 扫码框和扫描线效果 -->
           <div class="absolute inset-0 bg-black/50">
             <div class="scan-box absolute inset-0 bg-transparent border-2 border-primary"></div>
@@ -169,14 +169,14 @@
       </div>
     </section>
 
-    <!-- 商品信息编辑区域 -->
+    <!-- panel信息编辑区域 -->  <!-- 文本修改 -->
     <section id="edit-view" class="hidden animate-slide-up">
       <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg p-6">
-        <h2 class="text-xl font-bold mb-6 text-center">商品信息</h2>
+        <h2 class="text-xl font-bold mb-6 text-center">panel信息</h2>  <!-- 文本修改 -->
         
         <div class="space-y-4 mb-6">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">商品条码</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">panel条码</label>  <!-- 文本修改 -->
             <div class="relative">
               <input type="text" id="product-code" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all" readonly>
               <button id="copy-code-btn" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary transition-colors">
@@ -221,7 +221,7 @@
               <thead class="bg-gray-50">
                 <tr>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">商品条码</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">panel条码</th>  <!-- 文本修改 -->
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分配人员</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                 </tr>
@@ -254,7 +254,7 @@
   <!-- 底部提示 -->
   <footer class="bg-white border-t border-gray-200 py-4 mt-auto">
     <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
-      <p>商品出库扫码系统 &copy; 2023</p>
+      <p>panel分配系统 &copy; 2023</p>  <!-- 文本修改 -->
     </div>
   </footer>
 
@@ -313,7 +313,7 @@
       
       // 帮助按钮
       document.getElementById('help-btn').addEventListener('click', () => {
-        showToast('使用说明：扫描商品二维码后输入分配人员信息', 'info-circle');
+        showToast('使用说明：扫描panel二维码后输入分配人员信息', 'info-circle');  <!-- 文本修改 -->
       });
     }
     
@@ -331,30 +331,44 @@
         html5QrcodeScanner.clear();
       }
       
-      // 创建新的扫码器实例
+      // 创建新的扫码器实例 - 调整扫描框大小
       html5QrcodeScanner = new Html5QrcodeScanner(
         "qr-reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        { fps: 10, qrbox: { width: 300, height: 300 } },  // 增大扫描框
         false
       );
       
       // 开始扫描
       html5QrcodeScanner.render(onScanSuccess, onScanError);
       
-      // 尝试使用指定的摄像头
+      // 优化摄像头获取逻辑，优先使用后置摄像头
       Html5Qrcode.getCameras().then(devices => {
         if (devices && devices.length) {
-          const cameraId = devices.find(d => d.label.toLowerCase().includes(currentCamera))?.id || devices[0].id;
+          // 改进的摄像头选择逻辑，提高后置摄像头识别率
+          let cameraId;
+          // 优先查找明确标记为后置的摄像头
+          const backCamera = devices.find(d => 
+            d.label.toLowerCase().includes('back') || 
+            d.label.toLowerCase().includes('rear') ||
+            d.label.toLowerCase().includes('后置')
+          );
+          
+          // 如果找到后置摄像头，使用它；否则使用第一个可用摄像头
+          cameraId = backCamera ? backCamera.id : devices[0].id;
+          
+          // 强制设置为环境摄像头（后置）
+          currentCamera = 'environment';
+          
           html5QrcodeScanner.html5Qrcode.start(
             cameraId,
-            { fps: 10, qrbox: { width: 250, height: 250 } },
+            { fps: 10, qrbox: { width: 300, height: 300 } },  // 增大扫描框
             onScanSuccess,
             onScanError
           );
         }
       }).catch(err => {
         console.error('获取摄像头失败:', err);
-        showToast('无法访问摄像头，请确保已授予权限', 'exclamation-triangle');
+        showToast('无法访问摄像头，请确保已授予权限并尝试刷新页面', 'exclamation-triangle');  // 改进错误提示
       });
     }
     
@@ -367,7 +381,7 @@
         html5QrcodeScanner.clear();
       }
       
-      // 填充商品条码并切换到编辑视图
+      // 填充panel条码并切换到编辑视图  <!-- 文本修改 -->
       productCodeInput.value = decodedText;
       assignedPersonInput.value = '';
       scanView.classList.add('hidden');
@@ -386,7 +400,10 @@
       // 可以忽略常规的扫描错误，仅处理严重错误
       if (!errorMessage.includes('No QR code found')) {
         console.error('扫码错误:', errorMessage);
-        // showToast('扫码错误，请重试', 'exclamation-circle');
+        // 仅在严重错误时显示提示
+        if (errorMessage.includes('NotAllowedError')) {
+          showToast('需要摄像头权限才能扫码，请在浏览器设置中启用', 'exclamation-circle');
+        }
       }
     }
     
@@ -408,11 +425,11 @@
     
     // 保存记录
     function saveRecord(continueScanning) {
-      const productCode = productCodeInput.value.trim();
+      const panelCode = productCodeInput.value.trim();  // 变量名修改
       const assignedPerson = assignedPersonInput.value.trim();
       
-      if (!productCode) {
-        showToast('商品条码不能为空', 'exclamation-circle');
+      if (!panelCode) {  // 变量名修改
+        showToast('panel条码不能为空', 'exclamation-circle');  // 文本修改
         return;
       }
       
@@ -425,7 +442,7 @@
       // 添加记录
       scanHistory.push({
         id: Date.now(),
-        productCode,
+        productCode: panelCode,  // 变量名修改
         assignedPerson,
         timestamp: new Date().toISOString()
       });
@@ -451,12 +468,12 @@
       showToast('记录已保存', 'check-circle');
     }
     
-    // 复制商品条码
+    // 复制panel条码  <!-- 文本修改 -->
     function copyProductCode() {
-      const productCode = productCodeInput.value.trim();
-      if (productCode) {
-        navigator.clipboard.writeText(productCode).then(() => {
-          showToast('商品条码已复制', 'check-circle');
+      const panelCode = productCodeInput.value.trim();  // 变量名修改
+      if (panelCode) {  // 变量名修改
+        navigator.clipboard.writeText(panelCode).then(() => {  // 变量名修改
+          showToast('panel条码已复制', 'check-circle');  // 文本修改
         }).catch(err => {
           console.error('复制失败:', err);
           showToast('复制失败，请手动复制', 'exclamation-circle');
@@ -549,18 +566,18 @@
       
       // 准备导出数据
       const exportData = scanHistory.map(item => ({
-        '商品条码': item.productCode,
+        'panel条码': item.productCode,  // 文本修改
         '分配人员': item.assignedPerson
       }));
       
       // 创建工作簿和工作表
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, '商品出库记录');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'panel分配记录');  // 文本修改
       
       // 生成文件名（包含当前日期）
       const today = new Date();
-      const fileName = `商品出库记录_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}.xlsx`;
+      const fileName = `panel分配记录_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}.xlsx`;  // 文本修改
       
       // 导出文件
       XLSX.writeFile(workbook, fileName);
